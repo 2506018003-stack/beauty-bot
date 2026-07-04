@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: beauty-bot
+    env: docker
+    dockerCommand: uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 1
+    envVars:
+      - key: ADMIN_IDS
+        value: "7804481895"
+      - key: SALON_NAME
+        value: "Beauty Studio"
+      - key: SALON_PHONE
+        value: "+7 900 000-00-00"
+      - key: OPEN_HOURS
+        value: "09:00-21:00"
+      - key: WEBAPP_URL
+        value: "https://beauty-bot.onrender.com/miniapp"
+      - key: CRM_URL
+        value: "https://beauty-bot.onrender.com/crm"
+      - key: DEBUG
+        value: "true"
+      # Следующие ключи не будут перезаписываться при деплое,
+      # вставить вручную в панели Render:
+      - key: BOT_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beauty Studio CRM</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg:#100d13; --card:#1a1520; --card2:#221a29; --border:#302838;
+    --text:#f5eef8; --muted:#9a8ba8; --accent:#e07ba0; --green:#3ecf8e;
+    --red:#e5605a; --blue:#5b9df9;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);color:var(--text);}
+  .login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
+  .login-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:340px;width:100%;text-align:center;}
+  .login-card input{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;
+    padding:12px;color:var(--text);font-size:14px;margin:12px 0;}
+  header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);
+    padding:14px 16px;display:flex;justify-content:space-between;align-items:center;}
+  header h1{margin:0;font-size:17px;}
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 16px;}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 10px;text-align:center;}
+  .stat .val{font-size:20px;font-weight:800;color:var(--accent);}
+  .stat .lbl{font-size:10px;color:var(--muted);margin-top:2px;}
+  .tabs{display:flex;gap:6px;padding:0 16px 12px;overflow-x:auto;}
+  .tab{flex:0 0 auto;padding:7px 14px;border-radius:20px;background:var(--card);color:var(--muted);
+    font-size:13px;border:1px solid var(--border);cursor:pointer;white-space:nowrap;}
+  .tab.active{background:var(--accent);color:#2b0714;border-color:var(--accent);font-weight:700;}
+  .view{display:none;padding:0 16px 24px;}
+  .view.active{display:block;}
+  .kanban{display:grid;grid-auto-flow:column;grid-auto-columns:78vw;gap:12px;overflow-x:auto;
+    scroll-snap-type:x mandatory;padding-bottom:8px;}
+  @media(min-width:700px){ .kanban{grid-auto-columns:280px;} }
+  .kcol{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px;scroll-snap-align:start;}
+  .kcol h3{margin:4px 6px 10px;font-size:13px;display:flex;justify-content:space-between;color:var(--muted);}
+  .kcol h3 span.count{background:var(--card2);border-radius:10px;padding:2px 8px;color:var(--text);}
+  .kcard{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;}
+  .kcard .row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;}
+  .kcard .id{color:var(--muted);font-size:11px;}
+  .kcard .meta{color:var(--muted);font-size:12px;margin:2px 0;}
+  .kcard-actions{display:flex;gap:6px;margin-top:8px;}
+  .kbtn{flex:1;padding:6px 0;border-radius:8px;border:none;font-size:11px;font-weight:700;cursor:pointer;}
+  .kbtn.ok{background:var(--green);color:#04241a;}
+  .kbtn.no{background:var(--red);color:#fff;}
+  .kbtn.next{background:var(--blue);color:#04122b;}
+  .empty-col{color:var(--muted);font-size:12px;text-align:center;padding:20px 0;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;}
+  .top-items{display:flex;flex-direction:column;gap:8px;}
+  .top-item{display:flex;justify-content:space-between;font-size:13px;}
+  .bar{height:6px;background:var(--card2);border-radius:4px;overflow:hidden;margin-top:4px;}
+  .bar-fill{height:100%;background:var(--accent);}
+  .stars-sm{color:var(--accent);font-size:13px;}
+  .refresh-btn{background:var(--card2);border:1px solid var(--border);color:var(--text);
+    border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer;}
+  .login-btn{background:var(--accent);color:#2b0714;font-weight:700;border:none;border-radius:10px;padding:10px;cursor:pointer;width:100%}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--green);
+    color:#04241a;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:600;
+    opacity:0;transition:opacity .3s;pointer-events:none;z-index:99;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <h2>💅 Beauty Studio CRM</h2>
+    <p style="color:var(--muted);font-size:13px">Вход по Telegram или JWT-токену</p>
+    <input id="manual-token" placeholder="Вставьте admin JWT (для теста вне Telegram)">
+    <button class="login-btn" onclick="manualLogin()">Войти</button>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <h1>💅 Beauty Studio CRM</h1>
+    <button class="refresh-btn" onclick="loadAll()">↻ Обновить</button>
+  </header>
+
+  <div class="stats-row" id="stats-row"></div>
+
+  <div class="tabs">
+    <div class="tab active" data-view="bookings">📅 Записи</div>
+    <div class="tab" data-view="dashboard">📊 Дашборд</div>
+    <div class="tab" data-view="masters">👤 Мастера</div>
+    <div class="tab" data-view="reviews">✍️ Отзывы</div>
+  </div>
+
+  <div id="view-bookings" class="view active">
+    <div class="kanban" id="bookings-kanban"></div>
+  </div>
+
+  <div id="view-dashboard" class="view">
+    <div class="card">
+      <h3 style="margin-top:0">🏆 Топ мастера (по визитам)</h3>
+      <div class="top-items" id="top-masters"></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">💅 Топ услуги</h3>
+      <div class="top-items" id="top-services"></div>
+    </div>
+  </div>
+
+  <div id="view-masters" class="view">
+    <div class="card" id="masters-list"></div>
+  </div>
+
+  <div id="view-reviews" class="view">
+    <div id="reviews-list"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+tg?.ready(); tg?.expand();
+let token = localStorage.getItem("crm_token") || null;
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 2000);
+}
+
+async function api(path, opts={}){
+  opts.headers = opts.headers || {};
+  if (token) opts.headers["Authorization"] = "Bearer " + token;
+  if (opts.body && !opts.headers["Content-Type"]) opts.headers["Content-Type"] = "application/json";
+  const res = await fetch(path, opts);
+  if (res.status === 401 || res.status === 403){ logout(); throw new Error("unauthorized"); }
+  if (!res.ok) throw new Error((await res.json().catch(()=>({detail:res.statusText}))).detail);
+  return res.json();
+}
+
+function manualLogin(){
+  const t = document.getElementById("manual-token").value.trim();
+  if (!t) { toast("Введите токен"); return; }
+  token = t;
+  localStorage.setItem("crm_token", t);
+  showApp();
+}
+function logout(){
+  token = null; localStorage.removeItem("crm_token");
+  document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("app").style.display = "none";
+}
+async function tryTelegramLogin(){
+  const initData = tg?.initData || "";
+  if (!initData) return;
+  try {
+    const res = await api("/auth/login?init_data=" + encodeURIComponent(initData), {method:"POST"});
+    token = res.access_token;
+    localStorage.setItem("crm_token", token);
+    showApp();
+  } catch(e){}
+}
+function showApp(){
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  loadAll();
+}
+
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.onclick = () => {
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("view-"+tab.dataset.view).classList.add("active");
+  };
+});
+
+const BOOKING_COLS = [
+  {key:"pending", label:"Новые"},
+  {key:"confirmed", label:"Подтверждены"},
+  {key:"done", label:"Выполнены"},
+  {key:"cancelled", label:"Отклонены"},
+];
+
+async function loadAll(){
+  try {
+    await Promise.all([loadStats(), loadBookings(), loadMasters(), loadReviews()]);
+  } catch(e){ console.log(e); }
+}
+
+async function loadStats(){
+  const d = await api("/crm/dashboard");
+  document.getElementById("stats-row").innerHTML = `
+    <div class="stat"><div class="val">${d.pending_bookings}</div><div class="lbl">новые записи</div></div>
+    <div class="stat"><div class="val">${d.today_bookings}</div><div class="lbl">сегодня</div></div>
+    <div class="stat"><div class="val">${d.week_revenue.toFixed(0)}₽</div><div class="lbl">выручка/нед</div></div>
+    <div class="stat"><div class="val">${d.avg_rating}★</div><div class="lbl">рейтинг</div></div>`;
+
+  const maxMaster = Math.max(1, ...d.top_masters.map(i=>i.count));
+  document.getElementById("top-masters").innerHTML = d.top_masters.map(i=>`
+    <div>
+      <div class="top-item"><span>${i.name}</span><span>${i.count} визитов</span></div>
+      <div class="bar"><div class="bar-fill" style="width:${(i.count/maxMaster*100).toFixed(0)}%"></div></div>
+    </div>`).join("") || `<div style="color:var(--muted)">Пока нет данных</div>`;
+
+  const maxSvc = Math.max(1, ...d.top_services.map(i=>i.count));
+  document.getElementById("top-services").innerHTML = d.top_services.map(i=>`
+    <div>
+      <div class="top-item"><span>${i.name}</span><span>${i.count} раз</span></div>
+      <div class="bar"><div class="bar-fill" style="width:${(i.count/maxSvc*100).toFixed(0)}%"></div></div>
+    </div>`).join("") || `<div style="color:var(--muted)">Пока нет данных</div>`;
+}
+
+async function loadBookings(){
+  const bookings = await api("/crm/bookings");
+  const kanban = document.getElementById("bookings-kanban");
+  kanban.innerHTML = BOOKING_COLS.map(col=>{
+    const items = bookings.filter(b=>b.status===col.key);
+    return `<div class="kcol"><h3>${col.label} <span class="count">${items.length}</span></h3>
+      ${items.length ? items.map(b=>`
+        <div class="kcard">
+          <div class="row"><b>#${b.id}</b><span class="id">${b.booking_date}</span></div>
+          <div class="meta">💅 ${b.service} · 👤 ${b.master}</div>
+          <div class="meta">⏰ ${b.booking_time.slice(0,5)}</div>
+          ${b.comment ? `<div class="meta">💬 ${b.comment}</div>` : ""}
+          ${col.key==="pending" ? `
+            <div class="kcard-actions">
+              <button class="kbtn ok" onclick="setBookingStatus(${b.id},'confirmed')">✅</button>
+              <button class="kbtn no" onclick="setBookingStatus(${b.id},'cancelled')">❌</button>
+            </div>` : ""}
+          ${col.key==="confirmed" ? `
+            <div class="kcard-actions">
+              <button class="kbtn next" onclick="setBookingStatus(${b.id},'done')">🎉 Выполнено</button>
+            </div>` : ""}
+        </div>`).join("") : `<div class="empty-col">пусто</div>`}
+    </div>`;
+  }).join("");
+}
+
+async function setBookingStatus(id, status){
+  await api(`/crm/bookings/${id}/status`, {method:"PATCH", body: JSON.stringify({status})});
+  toast("Статус обновлён");
+  loadBookings(); loadStats();
+}
+
+async function loadMasters(){
+  const masters = await api("/crm/masters");
+  document.getElementById("masters-list").innerHTML = masters.length ? masters.map(m=>`
+    <div class="top-item" style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <span>${m.name}${m.specialty ? " — "+m.specialty : ""}</span>
+      <span style="color:${m.is_active ? 'var(--green)' : 'var(--red)'}">${m.is_active ? "активен" : "неактивен"}</span>
+    </div>`).join("") : `<div style="color:var(--muted)">Мастера не заведены</div>`;
+}
+
+async function loadReviews(){
+  const reviews = await api("/crm/reviews");
+  document.getElementById("reviews-list").innerHTML = reviews.length ? reviews.map(r=>`
+    <div class="card">
+      <div class="row" style="display:flex;justify-content:space-between">
+        <span class="stars-sm">${"★".repeat(r.rating)}${"☆".repeat(5-r.rating)}</span>
+        <span class="id" style="color:var(--muted);font-size:11px">${r.master || "без мастера"} · ${new Date(r.created_at).toLocaleDateString()}</span>
+      </div>
+      <p style="color:var(--muted);margin:6px 0 0">${r.text||"без комментария"}</p>
+    </div>`).join("") : `<div class="card">Пока нет отзывов</div>`;
+}
+
+if (token) showApp(); else tryTelegramLogin();
+</script>
+</body>
+</html>

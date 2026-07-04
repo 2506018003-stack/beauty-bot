@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Beauty Studio</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg:#120f14; --card:#1c1720; --card2:#241d2b; --border:#332a3d;
+    --text:#f5eef8; --muted:#a89ab5; --accent:#e07ba0; --accent2:#c85f87;
+    --green:#3ecf8e; --red:#e5605a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);color:var(--text);padding-bottom:80px;}
+  header{padding:20px 16px 12px;text-align:center;}
+  header h1{margin:0;font-size:22px;letter-spacing:.5px;}
+  header p{margin:4px 0 0;color:var(--muted);font-size:13px;}
+  .tabs{display:flex;gap:6px;padding:0 12px;overflow-x:auto;margin-bottom:14px;}
+  .tab{flex:0 0 auto;padding:8px 14px;border-radius:20px;background:var(--card);
+    color:var(--muted);font-size:13px;border:1px solid var(--border);cursor:pointer;white-space:nowrap;}
+  .tab.active{background:var(--accent);color:#2b0714;font-weight:600;}
+  .view{display:none;padding:0 14px;}
+  .view.active{display:block;}
+  .cat-chip{display:inline-block;padding:6px 12px;margin:0 6px 10px 0;border-radius:16px;
+    background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:13px;cursor:pointer;}
+  .cat-chip.active{background:var(--accent2);color:#fff;border-color:var(--accent2);}
+  .item-card{display:flex;gap:12px;background:var(--card);border:1px solid var(--border);
+    border-radius:14px;padding:12px;margin-bottom:10px;}
+  .item-card img{width:64px;height:64px;border-radius:10px;object-fit:cover;background:#333;}
+  .item-info{flex:1;}
+  .item-info h3{margin:0 0 4px;font-size:15px;}
+  .item-info p{margin:0 0 8px;color:var(--muted);font-size:12px;line-height:1.4;}
+  .item-row{display:flex;justify-content:space-between;align-items:center;}
+  .price{color:var(--accent);font-weight:700;font-size:14px;}
+  .btn{background:var(--accent);color:#2b0714;border:none;border-radius:10px;padding:8px 14px;
+    font-weight:700;font-size:13px;cursor:pointer;}
+  .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+  .btn.full{width:100%;padding:14px;border-radius:12px;font-size:15px;margin-top:12px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .field input,.field select,.field textarea{width:100%;background:var(--card2);border:1px solid var(--border);
+    border-radius:10px;padding:10px 12px;color:var(--text);font-size:14px;}
+  .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .grid4 .btn,.grid2 .btn{padding:10px 0;}
+  .slot{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px 4px;
+    text-align:center;font-size:13px;cursor:pointer;}
+  .slot.sel,.grid2 .btn.sel{background:var(--accent);color:#2b0714;border-color:var(--accent);}
+  .status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+  .status-pending{background:#4a3a1a;color:var(--accent);}
+  .status-confirmed,.status-done{background:#1a3a2c;color:var(--green);}
+  .status-cancelled{background:#3a1a1a;color:var(--red);}
+  .loyalty-box{text-align:center;padding:24px;}
+  .loyalty-points{font-size:40px;font-weight:800;color:var(--accent);}
+  .stars{font-size:22px;letter-spacing:4px;text-align:center;margin:12px 0;cursor:pointer;}
+  .empty{text-align:center;color:var(--muted);padding:40px 0;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--green);
+    color:#04241a;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:600;
+    opacity:0;transition:opacity .3s;pointer-events:none;z-index:99;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>💅 Beauty Studio</h1>
+  <p>Услуги · Мастера · Запись · Лояльность</p>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-view="services">💅 Услуги</div>
+  <div class="tab" data-view="booking">📅 Запись</div>
+  <div class="tab" data-view="mybookings">🗓 Мои записи</div>
+  <div class="tab" data-view="loyalty">⭐ Баллы</div>
+  <div class="tab" data-view="reviews">✍️ Отзывы</div>
+</div>
+
+<div id="view-services" class="view active">
+  <div id="categories"></div>
+  <div id="items"></div>
+</div>
+
+<div id="view-booking" class="view">
+  <div class="card">
+    <div class="field">
+      <label>Услуга</label>
+      <select id="booking-service"></select>
+    </div>
+    <div class="field">
+      <label>Мастер</label>
+      <select id="booking-master"></select>
+    </div>
+    <div class="field">
+      <label>Дата</label>
+      <input type="date" id="booking-date">
+    </div>
+    <div class="field">
+      <label>Время</label>
+      <div class="grid4" id="time-grid"></div>
+    </div>
+    <div class="field">
+      <label>Пожелания</label>
+      <textarea id="booking-comment" rows="2" placeholder="Особые пожелания..."></textarea>
+    </div>
+    <button class="btn full" onclick="submitBooking()">Записаться</button>
+  </div>
+</div>
+
+<div id="view-mybookings" class="view">
+  <div id="my-bookings"></div>
+</div>
+
+<div id="view-loyalty" class="view">
+  <div class="loyalty-box card">
+    <div class="loyalty-points" id="points-value">0</div>
+    <div style="color:var(--muted)">баллов лояльности</div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">🎁 Реферальная программа</h3>
+    <p style="color:var(--muted);font-size:13px">Пригласите друга — получите 200 баллов за его первый визит. Друг тоже получит 200 баллов!</p>
+    <input readonly id="ref-link" style="width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text);font-size:12px;margin-top:8px">
+    <button class="btn full" onclick="shareRef()">Поделиться ссылкой</button>
+  </div>
+</div>
+
+<div id="view-reviews" class="view">
+  <div class="card">
+    <h3 style="margin-top:0">Оставить отзыв</h3>
+    <div class="stars" id="rating-stars">☆☆☆☆☆</div>
+    <textarea id="review-text" rows="3" placeholder="Расскажите о впечатлениях..." style="width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text)"></textarea>
+    <button class="btn full" onclick="submitReview()">Отправить</button>
+  </div>
+  <div id="reviews-list"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+tg?.ready(); tg?.expand();
+const API = "";
+let selTime = null, selRating = 0;
+let token = null;
+let servicesCache = [], mastersCache = [];
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 2000);
+}
+
+async function api(path, opts={}){
+  opts.headers = opts.headers || {};
+  if (token) opts.headers["Authorization"] = "Bearer " + token;
+  if (opts.body && !opts.headers["Content-Type"]) opts.headers["Content-Type"] = "application/json";
+  const res = await fetch(API + path, opts);
+  if (!res.ok) throw new Error((await res.json().catch(()=>({detail:res.statusText}))).detail);
+  return res.json();
+}
+
+async function login(){
+  try {
+    const initData = tg?.initData || "";
+    if (!initData) return;
+    const res = await api("/auth/login?init_data=" + encodeURIComponent(initData), {method:"POST"});
+    token = res.access_token;
+    loadLoyalty();
+    loadBookings();
+  } catch(e){ console.log("login skipped", e); }
+}
+
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.onclick = () => {
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("view-"+tab.dataset.view).classList.add("active");
+    if (tab.dataset.view === "mybookings") loadBookings();
+    if (tab.dataset.view === "reviews") loadReviews();
+    if (tab.dataset.view === "booking") loadBookingForm();
+  };
+});
+
+// ---- SERVICES CATALOG ----
+let allCategories = [], activeCat = null;
+async function loadCatalog(){
+  allCategories = await api("/services/categories");
+  const catBox = document.getElementById("categories");
+  catBox.innerHTML = allCategories.map(c=>`<span class="cat-chip ${c.id===activeCat?'active':''}" onclick="selectCat(${c.id})">${c.name}</span>`).join("");
+  if (allCategories.length && activeCat===null) activeCat = allCategories[0].id;
+  loadItems();
+}
+function selectCat(id){ activeCat = id; loadCatalog(); }
+async function loadItems(){
+  const items = await api("/services/items" + (activeCat ? "?category_id="+activeCat : ""));
+  document.getElementById("items").innerHTML = items.length ? items.map(i=>`
+    <div class="item-card">
+      ${i.photo_url ? `<img src="${i.photo_url}">` : `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%23332a3d'/%3E%3C/svg%3E">`}
+      <div class="item-info">
+        <h3>${i.name}</h3>
+        <p>${i.description||""}</p>
+        <div class="item-row">
+          <span class="price">${i.price} ₽ · ${i.duration_minutes} мин</span>
+        </div>
+      </div>
+    </div>`).join("") : `<div class="empty">Пока пусто</div>`;
+}
+
+// ---- BOOKING ----
+async function loadBookingForm(){
+  if (!servicesCache.length) servicesCache = await api("/services/items");
+  if (!mastersCache.length) mastersCache = await api("/services/masters");
+  document.getElementById("booking-service").innerHTML = servicesCache.map(s=>`<option value="${s.id}">${s.name} — ${s.price} ₽</option>`).join("");
+  document.getElementById("booking-master").innerHTML = mastersCache.map(m=>`<option value="${m.id}">${m.name}${m.specialty ? " — "+m.specialty : ""}</option>`).join("");
+  initTimeGrid();
+}
+function initTimeGrid(){
+  const slots = []; let h=9,m=0;
+  while(h<20 || (h===20&&m===30)){ slots.push(String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")); m+=30; if(m>=60){m=0;h++;} }
+  document.getElementById("time-grid").innerHTML = slots.map(s=>`<div class="slot" onclick="selTimeFn('${s}', this)">${s}</div>`).join("");
+}
+function selTimeFn(t, el){
+  selTime = t;
+  document.querySelectorAll("#time-grid .slot").forEach(s=>s.classList.remove("sel"));
+  el.classList.add("sel");
+}
+async function submitBooking(){
+  const date = document.getElementById("booking-date").value;
+  const serviceId = document.getElementById("booking-service").value;
+  const masterId = document.getElementById("booking-master").value;
+  if (!date || !selTime || !serviceId || !masterId) { toast("Заполните все поля"); return; }
+  try {
+    await api("/booking", {method:"POST", body: JSON.stringify({
+      service_id: parseInt(serviceId), master_id: parseInt(masterId),
+      booking_date: date, booking_time: selTime+":00",
+      comment: document.getElementById("booking-comment").value
+    })});
+    toast("✅ Заявка на запись отправлена!");
+    loadBookings();
+  } catch(e){ toast("Войдите через бота, чтобы записаться"); }
+}
+async function loadBookings(){
+  try {
+    const list = await api("/booking/my");
+    document.getElementById("my-bookings").innerHTML = list.length ? list.map(b=>`
+      <div class="card">
+        <div class="item-row">
+          <span>${b.service} · ${b.master}</span>
+          <span class="status-badge status-${b.status}">${b.status}</span>
+        </div>
+        <div style="color:var(--muted);font-size:13px;margin-top:6px">${b.booking_date} · ${b.booking_time.slice(0,5)}</div>
+      </div>`).join("") : `<div class="empty">У вас пока нет записей</div>`;
+  } catch(e){
+    document.getElementById("my-bookings").innerHTML = `<div class="empty">Войдите через бота, чтобы видеть записи</div>`;
+  }
+}
+
+// ---- LOYALTY ----
+async function loadLoyalty(){
+  try {
+    const data = await api("/loyalty/me");
+    document.getElementById("points-value").textContent = data.points;
+    document.getElementById("ref-link").value = location.origin + "?ref=" + data.referral_code;
+  } catch(e){}
+}
+function shareRef(){
+  const link = document.getElementById("ref-link").value;
+  if (tg?.openTelegramLink) tg.openTelegramLink("https://t.me/share/url?url="+encodeURIComponent(link));
+  else navigator.clipboard?.writeText(link).then(()=>toast("Ссылка скопирована"));
+}
+
+// ---- REVIEWS ----
+function initStars(){
+  const box = document.getElementById("rating-stars");
+  box.onclick = (e) => {
+    const rect = box.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    selRating = Math.max(1, Math.min(5, Math.ceil(pct*5)));
+    box.textContent = "★".repeat(selRating) + "☆".repeat(5-selRating);
+  };
+}
+async function submitReview(){
+  if (!selRating){ toast("Поставьте оценку"); return; }
+  toast("Спасибо! Отзыв доступен через бота (/start → Отзывы)");
+}
+async function loadReviews(){
+  try {
+    const list = await api("/reviews");
+    document.getElementById("reviews-list").innerHTML = list.map(r=>`
+      <div class="card">
+        <div class="item-row">
+          <span>${"★".repeat(r.rating)}${"☆".repeat(5-r.rating)}</span>
+          ${r.master ? `<span style="color:var(--muted);font-size:12px">${r.master}</span>` : ""}
+        </div>
+        <p style="color:var(--muted);margin:6px 0 0">${r.text||""}</p>
+      </div>`).join("") || `<div class="empty">Пока нет отзывов</div>`;
+  } catch(e){}
+}
+
+initStars();
+loadCatalog();
+login();
+</script>
+</body>
+</html>
